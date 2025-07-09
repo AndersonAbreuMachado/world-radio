@@ -31,7 +31,14 @@
     async function fetchStations(query = '') {
       stationsContainer.innerHTML = '<p class="text-center w-full">🔄 Carregando...</p>';
 
-      const url = `https://de1.api.radio-browser.info/json/stations/search?limit=60&hidebroken=true&order=votes&name=${encodeURIComponent(query)}`;
+      let url = '';
+      if (query.trim() === '') {
+        // Busca as 100 rádios mais populares
+        url = 'https://de1.api.radio-browser.info/json/stations/topclick/100';
+      } else {
+        // Busca rádios filtrando por nome
+        url = `https://de1.api.radio-browser.info/json/stations/search?limit=100&hidebroken=true&order=votes&name=${encodeURIComponent(query)}`;
+      }
 
       try {
         const res = await fetch(url);
@@ -66,14 +73,25 @@
       }
     }
 
+    // Pausar outras rádios quando uma começar a tocar
+    stationsContainer.addEventListener('play', (event) => {
+      const audios = stationsContainer.querySelectorAll('audio');
+      audios.forEach(audio => {
+        if (audio !== event.target) {
+          audio.pause();
+        }
+      });
+    }, true);
+
     searchInput.addEventListener('input', () => {
       const query = searchInput.value.trim();
       fetchStations(query);
     });
 
-    // Carrega estações ao abrir a página
+    // Carrega rádios mais populares ao abrir a página
     fetchStations();
   </script>
 </body>
 </html>
+
 
