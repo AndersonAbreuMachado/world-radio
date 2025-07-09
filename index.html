@@ -59,10 +59,11 @@
           card.innerHTML = `
             <h2 class="text-xl font-semibold mb-2">${station.name}</h2>
             <p class="text-sm mb-2">🌐 ${station.country} | 🗣 ${station.language}</p>
-            <audio controls class="w-full" preload="none">
+            <audio controls class="w-full" preload="none" onerror="this.nextElementSibling.style.display='block'">
               <source src="${station.url_resolved}" type="audio/mpeg" />
               Seu navegador não suporta o player de áudio.
             </audio>
+            <p class="text-red-500 mt-2 hidden">Não foi possível reproduzir esta rádio.</p>
           `;
 
           stationsContainer.appendChild(card);
@@ -93,5 +94,3 @@
   </script>
 </body>
 </html>
-
-
