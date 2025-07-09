@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rádios do Mundo - Ao Vivo</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white font-sans">
+  <header class="bg-gray-800 p-4 text-center text-2xl font-bold">
+    🌎 Rádios do Mundo ao Vivo
+  </header>
+
+  <main class="p-4">
+    <div class="mb-4">
+      <input id="search" type="text" placeholder="Buscar por país, nome ou idioma..." class="w-full p-2 rounded text-black">
+    </div>
+
+    <div id="stations" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+  </main>
+
+  <script>
+    const stationsContainer = document.getElementById('stations');
+    const searchInput = document.getElementById('search');
+
+    async function fetchStations(query = '') {
+      stationsContainer.innerHTML = '<p class="text-center w-full">🔄 Carregando...</p>';
+      const url = `https://de1.api.radio-browser.info/json/stations/search?limit=60&hidebroken=true&order=votes&name=${encodeURIComponent(query)}`;
+
+      const res = await fetch(url);
+      const data = await res.json();
+      stationsContainer.innerHTML = '';
+
+      if (data.length === 0) {
+        stationsContainer.innerHTML = '<p class="text-center w-full">Nenhuma rádio encontrada.</p>';
+        return;
+      }
+
+      data.forEach(station => {
+        const card = document.createElement('div');
+        card.className = 'bg-gray-800 p-4 rounded shadow-md hover:bg-gray-700 transition';
+
+        card.innerHTML = `
+          <h2 class="text-xl font-semibold mb-2">${station.name}</h2>
+          <p class="text-sm mb-2">🌐 ${station.country} | 🗣️ ${station.language}</p>
+          <audio controls class="w-full">
+            <source src="${station.url_resolved}" type="audio/mpeg">
+            Seu navegador não suporta o player de áudio.
+          </audio>
+        `;
+        stationsContainer.appendChild(card);
+      });
+    }
+
+    searchInput.addEventListener('input', () => {
+      const query = searchInput.value;
+      fetchStations(query);
+    });
+
+    fetchStations(); // Carrega estações por padrão
+  </script>
+</body>
+</html>
