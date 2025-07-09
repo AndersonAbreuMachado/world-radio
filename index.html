@@ -5,6 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Rádios do Mundo - Ao Vivo</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Escondemos o texto de erro inicialmente */
+    .audio-error {
+      display: none;
+      color: #f87171; /* vermelho */
+      margin-top: 0.5rem;
+    }
+  </style>
 </head>
 <body class="bg-gray-900 text-white font-sans">
   <header class="bg-gray-800 p-4 text-center text-2xl font-bold">
@@ -28,69 +36,131 @@
     const stationsContainer = document.getElementById('stations');
     const searchInput = document.getElementById('search');
 
-    async function fetchStations(query = '') {
-      stationsContainer.innerHTML = '<p class="text-center w-full">🔄 Carregando...</p>';
+    // Lista extra de rádios estática
+    const radiosExtras = [
+      {
+        name: "Radio Exemplo 1",
+        url_resolved: "http://stream.exemplo1.com/stream",
+        country: "Brasil",
+        language: "Português",
+      },
+      {
+        name: "Radio Exemplo 2",
+        url_resolved: "http://stream.exemplo2.com/stream",
+        country: "Estados Unidos",
+        language: "English",
+      },
+      // Você pode adicionar mais aqui
+    ];
 
-      let url = '';
-      if (query.trim() === '') {
-        // Busca as 100 rádios mais populares
-        url = 'https://de1.api.radio-browser.info/json/stations/topclick/100';
+    // Função que busca rádios na API Radio Browser
+    async function fetchRadioBrowser(query = "") {
+      let url = "";
+      if (query.trim() === "") {
+        url = "https://de1.api.radio-browser.info/json/stations/topclick/100";
       } else {
-        // Busca rádios filtrando por nome
         url = `https://de1.api.radio-browser.info/json/stations/search?limit=100&hidebroken=true&order=votes&name=${encodeURIComponent(query)}`;
       }
 
       try {
         const res = await fetch(url);
-        if (!res.ok) throw new Error('Erro na requisição');
+        if (!res.ok) throw new Error("Erro na requisição Radio Browser");
         const data = await res.json();
-
-        stationsContainer.innerHTML = '';
-
-        if (data.length === 0) {
-          stationsContainer.innerHTML = '<p class="text-center w-full">Nenhuma rádio encontrada.</p>';
-          return;
-        }
-
-        data.forEach(station => {
-          const card = document.createElement('div');
-          card.className = 'bg-gray-800 p-4 rounded shadow-md hover:bg-gray-700 transition';
-
-          card.innerHTML = `
-            <h2 class="text-xl font-semibold mb-2">${station.name}</h2>
-            <p class="text-sm mb-2">🌐 ${station.country} | 🗣 ${station.language}</p>
-            <audio controls class="w-full" preload="none" onerror="this.nextElementSibling.style.display='block'">
-              <source src="${station.url_resolved}" type="audio/mpeg" />
-              Seu navegador não suporta o player de áudio.
-            </audio>
-            <p class="text-red-500 mt-2 hidden">Não foi possível reproduzir esta rádio.</p>
-          `;
-
-          stationsContainer.appendChild(card);
-        });
+        return data;
       } catch (error) {
-        stationsContainer.innerHTML = '<p class="text-center w-full text-red-500">Erro ao carregar as rádios.</p>';
         console.error(error);
+        return [];
       }
     }
 
-    // Pausar outras rádios quando uma começar a tocar
-    stationsContainer.addEventListener('play', (event) => {
-      const audios = stationsContainer.querySelectorAll('audio');
-      audios.forEach(audio => {
-        if (audio !== event.target) {
-          audio.pause();
+    // Filtra a lista extra local pelo termo buscado
+    function filterRadiosExtras(query) {
+      if (!query) return radiosExtras;
+
+      const q = query.toLowerCase();
+      return radiosExtras.filter(
+        (radio) =>
+          radio.name.toLowerCase().includes(q) ||
+          radio.country.toLowerCase().includes(q) ||
+          radio.language.toLowerCase().includes(q)
+      );
+    }
+
+    // Remove rádios duplicadas pela url_resolved
+    function mergeRadios(list1, list2) {
+      const map = new Map();
+
+      [...list1, ...list2].forEach((radio) => {
+        if (radio.url_resolved && !map.has(radio.url_resolved)) {
+          map.set(radio.url_resolved, radio);
         }
       });
-    }, true);
 
-    searchInput.addEventListener('input', () => {
+      return Array.from(map.values());
+    }
+
+    // Mostra as rádios na tela
+    function displayRadios(radios) {
+      stationsContainer.innerHTML = "";
+
+      if (radios.length === 0) {
+        stationsContainer.innerHTML =
+          '<p class="text-center w-full">Nenhuma rádio encontrada.</p>';
+        return;
+      }
+
+      radios.forEach((station) => {
+        const card = document.createElement("div");
+        card.className =
+          "bg-gray-800 p-4 rounded shadow-md hover:bg-gray-700 transition";
+
+        card.innerHTML = `
+          <h2 class="text-xl font-semibold mb-2">${station.name}</h2>
+          <p class="text-sm mb-2">🌐 ${station.country} | 🗣 ${station.language}</p>
+          <audio controls class="w-full" preload="none" onerror="this.nextElementSibling.style.display='block'">
+            <source src="${station.url_resolved}" type="audio/mpeg" />
+            Seu navegador não suporta o player de áudio.
+          </audio>
+          <p class="audio-error">Não foi possível reproduzir esta rádio.</p>
+        `;
+
+        stationsContainer.appendChild(card);
+      });
+    }
+
+    // Função principal para buscar e mostrar rádios
+    async function fetchAndShowStations(query = "") {
+      stationsContainer.innerHTML =
+        '<p class="text-center w-full">🔄 Carregando...</p>';
+
+      const radiosAPI = await fetchRadioBrowser(query);
+      const radiosLocais = filterRadiosExtras(query);
+
+      const todasRadios = mergeRadios(radiosAPI, radiosLocais);
+      displayRadios(todasRadios);
+    }
+
+    // Pausar outras rádios quando uma começar a tocar
+    stationsContainer.addEventListener(
+      "play",
+      (event) => {
+        const audios = stationsContainer.querySelectorAll("audio");
+        audios.forEach((audio) => {
+          if (audio !== event.target) {
+            audio.pause();
+          }
+        });
+      },
+      true
+    );
+
+    searchInput.addEventListener("input", () => {
       const query = searchInput.value.trim();
-      fetchStations(query);
+      fetchAndShowStations(query);
     });
 
-    // Carrega rádios mais populares ao abrir a página
-    fetchStations();
+    // Carrega as rádios mais populares ao abrir a página
+    fetchAndShowStations();
   </script>
 </body>
 </html>
